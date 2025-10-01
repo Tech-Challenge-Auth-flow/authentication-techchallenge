@@ -26,9 +26,28 @@ Parameters:
     NoEcho: true
   ExistingRoleArn:
     Type: String
-    Description: ARN da role existente para usar no Lambda
-    Default: arn:aws:iam::587930199896:role/LabRole
-
+    Description: Existing Lambda Role ARN
+    NoEcho: true
+  VpcId:
+    Type: String
+    Description: Infrastructure VPC ID
+    Default: vpc-0c88c743c51bae7e4
+  PrivateSubnetA:
+    Type: String
+    Description: Private Subnets ID
+  PrivateSubnetB:
+    Type: String
+    Description: Private Subnets ID
+  SecurityGroupId:
+    Type: String
+    Description: Security Group ID for VPC Link
+  NlbArn:
+    Type: String
+    Description: ARN of the Network Load Balancer
+  NlbListenerArn:
+    Type: String
+    Description: ARN of the NLB Listener (port 80)
+    
 Resources:
   HttpApi:
     Type: AWS::Serverless::HttpApi
@@ -40,12 +59,96 @@ Resources:
         - GET
         - POST
         - PUT
+        - PATCH
         - DELETE
         AllowHeaders:
         - Content-Type
         - Authorization
         AllowOrigins:
         - '*'
+  NlbIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: HTTP_PROXY
+      IntegrationMethod: ANY
+      IntegrationUri: !Ref NlbListenerArn
+      ConnectionType: VPC_LINK
+      ConnectionId: !Ref VpcLink
+      PayloadFormatVersion: '1.0'
+      RequestParameters:
+        overwrite:path: $request.path
+  ProxyRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /{proxy+}
+      Target: !Sub integrations/${NlbIntegration}
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
+  RegisterAttendantRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /user/attendant
+      Target: !Sub integrations/${NlbIntegration}
+      AuthorizationType: NONE
+  RegisterCustomerRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /user/customer
+      Target: !Sub integrations/${NlbIntegration}
+      AuthorizationType: NONE
+  ListTodayOrdersRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /api/order/list-today-orders
+      Target: !Sub integrations/${NlbIntegration}
+      AuthorizationType: NONE
+  SwaggerUIRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /swagger-ui/{proxy+}
+      Target: !Sub integrations/${NlbIntegration}
+      AuthorizationType: NONE
+  SwaggerDocsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /v3/api-docs
+      Target: !Sub integrations/${NlbIntegration}
+      AuthorizationType: NONE
+  SwaggerDocsConfigRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /v3/api-docs/swagger-config
+      Target: !Sub integrations/${NlbIntegration}
+      AuthorizationType: NONE
+  SwaggerResourcesRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /swagger-resources/{proxy+}
+      Target: !Sub integrations/${NlbIntegration}
+      AuthorizationType: NONE
+  AuthLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AuthFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*
+  LoginRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /login
+      Target: !Sub integrations/${AuthLambdaIntegration}
+      AuthorizationType: NONE
   AuthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -60,14 +163,6 @@ Resources:
           USER_POOL_ID: !Ref UserPoolId
           CLIENT_ID: !Ref ClientId
           USER_PASSWORD: !Ref UserPassword
-      Events:
-        Auth:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /login
-            Method: post
-            PayloadFormatVersion: "2.0"
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -76,10 +171,38 @@ Resources:
         Sourcemap: true
         EntryPoints:
         - app.ts
-
+  AuthLambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt AuthFunction.Arn
+      PayloadFormatVersion: '2.0'
+  VpcLink:
+      Type: AWS::ApiGatewayV2::VpcLink
+      Properties:
+        Name: tech-challenge-vpc-link
+        SubnetIds:
+          - !Ref PrivateSubnetA
+          - !Ref PrivateSubnetB
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+  CognitoAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref HttpApi
+      AuthorizerType: JWT
+      IdentitySource:
+        - $request.header.Authorization
+      JwtConfiguration:
+        Audience:
+          - !Ref ClientId
+        Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}
+      Name: CognitoAuthorizer
+    
 Outputs:
   HttpApi:
-    Description: API Gateway endpoint URL for Prod stage for Auth
+    Description: API Gateway endpoint URL
     Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/"
   AuthFunction:
     Description: Auth Lambda Function ARN
