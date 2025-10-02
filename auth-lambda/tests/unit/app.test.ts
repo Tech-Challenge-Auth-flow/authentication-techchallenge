@@ -1,67 +1,40 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { lambdaHandler } from '../../app';
 
 jest.mock('@aws-sdk/client-cognito-identity-provider');
-jest.mock('../../src/functions/manageCognitoUser', () => ({
-    manageCognitoUser: jest.fn().mockResolvedValue({}),
-}));
-jest.mock('../../src/functions/authenticateUser', () => ({
-    authenticateUser: jest.fn().mockResolvedValue({
-        AccessToken: 'test-access-token',
-        IdToken: 'test-id-token',
-        RefreshToken: 'test-refresh-token',
-    }),
-}));
+jest.mock('../../src/repositories/cognitoRepository');
+jest.mock('../../src/services/userService');
+jest.mock('../../src/handlers/registerHandler');
+jest.mock('../../src/handlers/loginHandler');
 
 describe('Lambda Handler', () => {
-    const mockEvent: APIGatewayProxyEvent = {
-        httpMethod: 'POST',
-        body: '',
+    const mockEvent: APIGatewayProxyEventV2 = {
+        version: '2.0',
+        routeKey: 'POST /login',
+        rawPath: '/login',
+        rawQueryString: '',
         headers: {},
+        body: '',
         isBase64Encoded: false,
-        multiValueHeaders: {},
-        multiValueQueryStringParameters: {},
-        path: '/login',
-        pathParameters: {},
-        queryStringParameters: {},
         requestContext: {
             accountId: '123456789012',
             apiId: '1234',
-            authorizer: {},
-            httpMethod: 'POST',
-            identity: {
-                accessKey: '',
-                accountId: '',
-                apiKey: '',
-                apiKeyId: '',
-                caller: '',
-                clientCert: {
-                    clientCertPem: '',
-                    issuerDN: '',
-                    serialNumber: '',
-                    subjectDN: '',
-                    validity: { notAfter: '', notBefore: '' },
-                },
-                cognitoAuthenticationProvider: '',
-                cognitoAuthenticationType: '',
-                cognitoIdentityId: '',
-                cognitoIdentityPoolId: '',
-                principalOrgId: '',
-                sourceIp: '',
-                user: '',
-                userAgent: '',
-                userArn: '',
-            },
-            path: '/login',
-            protocol: 'HTTP/1.1',
-            requestId: 'test-request-id',
-            requestTimeEpoch: 1428582896000,
-            resourceId: '123456',
-            resourcePath: '/login',
             stage: 'test',
+            requestId: 'test-request-id',
+            routeKey: 'POST /login',
+            domainName: 'test.execute-api.us-east-1.amazonaws.com',
+            domainPrefix: 'test',
+            time: '09/Apr/2015:12:34:56 +0000',
+            timeEpoch: 1428582896000,
+            http: {
+                method: 'POST',
+                path: '/login',
+                protocol: 'HTTP/1.1',
+                sourceIp: '127.0.0.1',
+                userAgent: 'Custom User Agent String',
+            },
         },
-        resource: '',
-        stageVariables: {},
     };
 
     beforeEach(() => {
@@ -84,7 +57,7 @@ describe('Lambda Handler', () => {
             body: JSON.stringify({ name: 'Test User' }),
         };
 
-        const result: APIGatewayProxyResult = await lambdaHandler(event);
+        const result = (await lambdaHandler(event)) as { statusCode: number; body: string };
 
         expect(result.statusCode).toBe(500);
     });
@@ -97,7 +70,7 @@ describe('Lambda Handler', () => {
             body: JSON.stringify({ name: 'Test User' }),
         };
 
-        const result: APIGatewayProxyResult = await lambdaHandler(event);
+        const result = (await lambdaHandler(event)) as { statusCode: number; body: string };
 
         expect(result.statusCode).toBe(500);
     });
@@ -108,7 +81,7 @@ describe('Lambda Handler', () => {
             body: JSON.stringify({}),
         };
 
-        const result: APIGatewayProxyResult = await lambdaHandler(event);
+        const result = (await lambdaHandler(event)) as { statusCode: number; body: string };
 
         expect(result.statusCode).toBe(400);
     });
@@ -119,7 +92,7 @@ describe('Lambda Handler', () => {
             body: 'invalid json',
         };
 
-        const result: APIGatewayProxyResult = await lambdaHandler(event);
+        const result = (await lambdaHandler(event)) as { statusCode: number; body: string };
 
         expect(result.statusCode).toBe(500);
     });
@@ -134,7 +107,7 @@ describe('Lambda Handler', () => {
             }),
         };
 
-        const result: APIGatewayProxyResult = await lambdaHandler(event);
+        const result = (await lambdaHandler(event)) as { statusCode: number; body: string };
 
         expect(result.statusCode).toBe(200);
         const body = JSON.parse(result.body);
@@ -149,7 +122,7 @@ describe('Lambda Handler', () => {
             }),
         };
 
-        const result: APIGatewayProxyResult = await lambdaHandler(event);
+        const result = (await lambdaHandler(event)) as { statusCode: number; body: string };
 
         expect(result.statusCode).toBe(200);
         const body = JSON.parse(result.body);

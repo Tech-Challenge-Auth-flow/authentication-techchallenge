@@ -68,4 +68,9 @@ jobs:
               UserPoolId=${{ secrets.COGNITO_USER_POOL_ID }} \
               ClientId=${{ secrets.COGNITO_CLIENT_ID }} \
               UserPassword=${{ secrets.USER_PASSWORD }} \
-              ExistingRoleArn=${{ vars.EXISTING_ROLE_ARN }}
+              ExistingRoleArn=${{ secrets.EXISTING_ROLE_ARN }} \
+              VpcId=${{ secrets.VPC_ID }} \
+              PrivateSubnetA=${{ secrets.PRIVATE_SUBNET_A }} \
+              PrivateSubnetB=${{ secrets.PRIVATE_SUBNET_B }} \
+              SecurityGroupId=${{ secrets.SECURITY_GROUP_ID }} \
+              NlbListenerArn=${{ secrets.NLB_LISTENER_ARN }}
