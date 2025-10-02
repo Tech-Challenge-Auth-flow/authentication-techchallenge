@@ -22,8 +22,8 @@ export const lambdaHandler = async (event: APIGatewayProxyEventV2): Promise<APIG
     const loginHandler = new LoginHandler(userService);
 
     console.log('Lambda handler started', {
-        httpMethod: event.requestContext.http,
-        path: event.requestContext.http,
+        httpMethod: event.requestContext.http.method,
+        path: event.requestContext.http.path,
     });
 
     if (!process.env.USER_POOL_ID || !process.env.CLIENT_ID || !process.env.USER_PASSWORD) {

@@ -7,8 +7,8 @@ Este sistema implementa autenticação e registro de usuários usando AWS Lambda
 -   ✅ **Registro de usuários** (`/register`)
 -   ✅ **Login de usuários registrados** (`/login` com CPF)
 -   ✅ **Login de usuários anônimos** (`/login` com nome)
--   ✅ **Validação de CPF** (algoritmo completo com dígitos verificadores)
--   ✅ **Validação de email** (formato RFC 5322)
+-   ✅ **Validação de CPF**
+-   ✅ **Validação de email**
 -   ✅ **Verificação de unicidade** (CPF e email únicos)
 -   ✅ **Tokens JWT nativos** do AWS Cognito
 -   ✅ **Arquitetura em camadas** (Handler → Service → Repository)
@@ -251,25 +251,10 @@ npm run compile
 
 # Lint
 npm run lint
+
+# Build Solução
+sam build
+
+# Executar API localmente
+sam local start-api
 ```
-
-## 📈 Monitoramento
-
--   **CloudWatch Logs**: Logs estruturados com níveis apropriados
--   **CloudWatch Metrics**: Métricas customizadas para registros/logins
--   **X-Ray**: Tracing distribuído (opcional)
-
-## 🔮 Melhorias Futuras
-
--   [ ] **Cache Redis** para validações de unicidade
--   [ ] **Lambda agendado** para limpeza de usuários anônimos antigos
--   [ ] **Rate limiting** avançado por IP/usuário
--   [ ] **Métricas customizadas** no CloudWatch
--   [ ] **Logs estruturados** em JSON
--   [ ] **Validação de CPF avançada** (blacklist de CPFs conhecidos)
--   [ ] **Suporte a refresh tokens** automático
--   [ ] **Webhook notifications** para eventos de usuário
-
-## 📄 Licença
-
-MIT License - veja o arquivo LICENSE para detalhes.
